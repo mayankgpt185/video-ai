@@ -1,0 +1,50 @@
+{
+    "CONNECTION_STRING": "Azure-Storage-Connection-String",
+    "CONTAINER_NAME": "Azure-Storage-Container-Name",
+    "_comment": "create table in container",
+    "TABLE_ACCOUNT_NAME": "table-name",
+    "TABLE_ACCOUNT_KEY": "table-key",
+    "DEBUG": true,
+
+    "AZURE_SPEECH_SUBSCRIPTION_KEY": "azure-speech-subscription-key",
+
+    "_comment": "The API base for the image model",
+    "API_BASE": "openai-api",
+    "API_KEY": "openai-api-key",
+    "API_VERSION": "openai-api-version",
+    "IMAGE_MODEL_NAME": "dalle or any image model",
+    "comment2": "The API base for the chat model",
+    "OPENAI_API_BASE": "openai-api",
+    "OPENAI_API_VERSION": "openai-api-version",
+    "DEPLOYMENT_NAME": "azure-openai-deployment-name",
+    "OPENAI_API_KEY": "azure-openai-api-key",
+    "_comment": "leave it like that if you are using azure",
+    "OPENAI_API_TYPE": "azure",
+    "MONGODB_SETTINGS": {
+        "db": "db-name",
+        "host": "db-host"
+        },
+    "TRANSLATE_API_KEY": "api-key",
+    "_comment": "leave it like that if you are using azure",
+    "TRANSLATE_ENDPOINT": "https://api.cognitive.microsofttranslator.com",
+    "AWS":{
+        "_comment": "leave it like that if you are using aws",
+        "service_name":"bedrock-runtime",
+        "_comment": "u can change this based on your chosen region",
+        "region_name":"us-east-1", 
+        "SECRET_KEY":"secret-key",
+        "ACCESS_KEY":"access-key",
+        "STABLE_DIFFUSION":{
+            "_comment": "change this if you wish to use another model",
+            "IMAGE_MODEL_NAME":"stability.stable-diffusion-xl-v0"
+        }
+    },
+    "_comment": "change this if you wish to use another model",
+    "MODEL_ID": "anthropic.claude-instant-v1",
+    "_comment": "from the anthropic website",
+    "ANTHROPIC_API_KEY": "anthropic-api-key",
+    "_comment": "change this if you wish to use another model",
+    "ANTHROPIC_MODEL_NAME": "claude-3-opus-20240229",
+    "_comment": "change this if you wish to",
+    "MODEL_KWARGS": {"temperature": 0.1}
+}
