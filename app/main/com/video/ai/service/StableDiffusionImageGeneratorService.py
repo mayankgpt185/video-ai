@@ -50,31 +50,7 @@ class ImageGenerator:
 #         return image
 
 #     # image5 = convert_img(req_img("Dog on a beach", "None"))
-
-#     def get_mime_type(self,extension):
-#         # Guess the MIME type based on the file extension
-#         mime_type, _ = mimetypes.guess_type(f"dummy.{extension}")
-#         return mime_type
     
-    # def generate_image(self, lesson_text, appConfig,headers:any):
-    #     logData = getLogs(headers)
-    #     responseData={}
-    #     try:
-    #         # raise Exception("rate limit reached")
-    #         log.logger.info(f"Calling stable diffusion API... for {logData}")
-    #         imageData = self.req_img(lesson_text, "None")
-    #         image = self.convert_img(base64_string=imageData)
-    #         responseData["contentType"] = self.get_mime_type(
-    #             image.format)
-    #         responseData["extension"] = image.format
-    #         responseData["image_url"] = ""
-    #         responseData["content"] = imageData
-    #         responseData["isImageGenerationFailed"] = False
-    #         responseData["isFailedForSafetySystem"] = False
-    #     except Exception as e:
-    #         log.logger.error(f"Error while generating image from stable Exiting image generation {e} for {logData}")
-    #         responseData["isImageGenerationFailed"] = True
-    #     return responseData
 
     def stableImage(self, prompt):
         
