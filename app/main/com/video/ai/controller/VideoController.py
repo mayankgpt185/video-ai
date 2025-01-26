@@ -2,7 +2,6 @@ from flask import request, current_app, Response
 from flask_restx import Namespace, Resource
 from app.main.com.video.ai.dto.videoDTO import videoDTO
 from app.main.com.video.ai.service.VideoService import VideoService
-from app.main.com.video.ai.utils.monitorWrap import monitor
 from flask import Response ,json
 
 api = videoDTO.api

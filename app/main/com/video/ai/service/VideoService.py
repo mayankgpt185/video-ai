@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 import json
+import subprocess
 import time
 from langchain.prompts import PromptTemplate
 from moviepy.editor import *
@@ -11,25 +12,18 @@ from langchain.output_parsers import PydanticOutputParser
 from langchain.schema import (HumanMessage,SystemMessage,AIMessage)
 from langchain.chat_models import AzureChatOpenAI, BedrockChat
 import openai
-from openai import OpenAIError
+from openai import AzureOpenAI, OpenAIError
 import pyjson5
 import re
+
+from app.main.com.video.ai.enum import PromptType
+from app.main.com.video.ai.service.StableDiffusionImageGeneratorService import ImageGenerator
 from ..model.PromptTemplates import PromptTemplates
 from ..model.Scripts import Scripts
 from ..model.ScriptModel import ScriptEntryEntity, ScriptImageEntryEntity, ScriptModel
-from azure.storage.blob import BlobServiceClient, generate_blob_sas, BlobSasPermissions
+from azure.storage.blob import BlobServiceClient, generate_blob_sas, BlobSasPermissions, ContentSettings
 
 class VideoService(object):
-
-
-    sentences = [
-    "As the sun sets on the horizon, a mystical tale begins to unfold. It is the story of Ravana, one of the most complex and controversial figures in Hindu mythology. In ancient times, when the world was still young, the gods and demons were locked in a never-ending struggle for power and supremacy. It was in this tumultuous era that Ravana was born, destined to change the course of history.",
-    "Ravana was born in the island kingdom of Lanka, a land shrouded in mystery and magic. His mother, Kaikesi, was a powerful demoness, while his father, Vishrava, was a learned Brahmin sage. Ravana's birth was no ordinary event, for he was born with ten heads and twenty arms, a sign of his immense power and strength.",
-    "The birth of Ravana was not just significant for his parents but also for the universe. It was prophesized that he would bring about a great change in the world and become a powerful force to reckon with. The gods and demons alike were wary of the young Ravana, for they knew that he possessed great potential and could tip the scales of balance in either direction.",
-    "As Ravana grew up, he showed remarkable intelligence and an insatiable thirst for knowledge. He was well-versed in the Vedas, the ancient scriptures of the Hindus, and he had a deep understanding of the universe and its workings. However, he was also impulsive and prone to anger, which would ultimately prove to be his downfall.",
-    "Despite his extraordinary abilities, Ravana was not content with his lot in life. He wanted more, and he was willing to do whatever it took to get it. This desire for power and control would lead him down a dangerous path, as he clashed with the gods and ultimately met his fate at the hands of Lord Rama.",
-    "In the end, the story of Ravana is one of tragedy and triumph. He was a complex figure, capable of great good and great evil, and his life serves as a cautionary tale about the perils of unchecked ambition. As the sun rises once again, we are left to ponder the legacy of this enigmatic figure and the lessons we can learn from his story."
-    ]
 
     def __init__(self, appConfig):
         self.connection_string = appConfig['CONNECTION_STRING']
@@ -43,7 +37,7 @@ class VideoService(object):
         self.account_key = appConfig["TABLE_ACCOUNT_KEY"]
         self.open_api_key = appConfig["OPENAI_API_KEY"]
         self.open_api_base = appConfig["OPENAI_API_BASE"]
-        aai.settings.api_key = "assemblyai-api-key"#just trying this
+        # aai.settings.api_key = "assemblyai-api-key"#just trying this
 
     
     def createVideoScript(self, topic, sceneCount, appConfig):
@@ -95,11 +89,12 @@ class VideoService(object):
             imageCount = len(sentence["scriptImages"])
             for j, images in enumerate(sentence["scriptImages"], 1):
                 image_name = f"image{(i-1) * imageCount + j}.png"
-                imageUrl = self.imageGeneratorService(images["sceneImage"])
-                # imageList.append(image_name)
-                uploaded_url = self.upload_blob_from_url(imageUrl["url"], image_name)
+                # uploaded_url = self.upload_blob_from_url(imageUrl["url"], image_name)
+                
+                uploaded_url = self.imageGeneratorService(images["sceneImage"], image_name, scriptEntry["scriptId"])
                 imageList.append(uploaded_url)
             # use this for static images(just trying with local images whether it works or not)
+            
             # image_base_dir = os.path.realpath("./images")
             # imageList = glob.glob(os.path.join(image_base_dir, '*'))
             
@@ -126,16 +121,19 @@ class VideoService(object):
         # codec = 'libx264'
 
         concat_clip.write_videofile(local_video_path, fps=fps)
-
-        audio_clip = AudioFileClip(background_audio_path)
-        output_video_clip = VideoFileClip(local_video_path)
-        trimmed_audio_clip = audio_clip.subclip(0, video_clip.duration)
-        lowered_audio = volumex(trimmed_audio_clip, 0.5)
+        
+        # adding background music to the video
+        
+        # audio_clip = AudioFileClip(background_audio_path)
+        # output_video_clip = VideoFileClip(local_video_path)
+        # trimmed_audio_clip = audio_clip.subclip(0, video_clip.duration)
+        # lowered_audio = volumex(trimmed_audio_clip, 0.5)
         # Add the audio to the video
-        output_video_clip.set_audio(lowered_audio)
+        # output_video_clip.set_audio(lowered_audio)
 
-        output_video_clip.write_videofile('./', codec="libx264", audio_codec="aac")
-
+        # output_video_clip.write_videofile('./', codec="libx264", audio_codec="aac")
+        
+        # uploading video to blob
         blob_client_url = self.upload_video_to_blob(local_video_path, topic + ".mp4", scriptEntry["scriptId"])
         return blob_client_url
     
@@ -274,28 +272,34 @@ class VideoService(object):
         result = PromptTemplates.objects(role=role, type=type, active=True).first()
         return result
  
-    def imageGeneratorService(self,prompt):
+    def imageGeneratorService(self,prompt, name, scriptId):
+        image_name = name
+        print(f"image_name: {image_name} and {name}")
         openai.api_base = self.api_base
         openai.api_version = self.api_version
         openai.api_key = self.api_key
         openai.api_version = self.api_version
         openai.api_type = self.api_type
 
-        max_retries = 2
+        client = AzureOpenAI(
+        api_version=self.api_version,
+        azure_endpoint=self.api_base,
+        api_key=self.api_key,
+        )
+        sleep_seconds = 30
+        max_retries = 3
         retry_count = 0
         url = None
         while retry_count < max_retries:
             try:
                 if retry_count >= 1:
-                    print(
-                        f"Sleeping for {self.sleep_seconds*retry_count} seconds...")
-                    time.sleep(self.sleep_seconds * retry_count)
-                print(f"Calling image generation API")
+                    # print(f"Sleeping for {sleep_seconds*retry_count} seconds...")
+                    time.sleep(sleep_seconds * retry_count)
                 try:
                     print(f"Calling image generation API")
                     # raise e
                     result = client.images.generate(
-                        model="call from env-dev.json", # the name of your DALL-E 3 deployment
+                        model="video-ai-dalle-dev", # the name of your DALL-E 3 deployment
                         prompt=prompt,
                         n=1,
                         size= "1024x1792"
@@ -308,25 +312,22 @@ class VideoService(object):
                 except OpenAIError as e:
                     if "Your task failed as a result of our safety system." in str(e):
                         raise e
-                try:
-                    url = generation_response["data"][0]["url"]
-                except KeyError as k:
-                    print(f"Generation error ..Invalid response structure .. Setting default URL ")
-                    raise k
-                break
+                    raise e
             except Exception as e:
                 print(f"Error while generating image  {e} Prompt:  {prompt}")
                 retry_count += 1
                 if (retry_count < max_retries):
                     print(f"Retrying... (Attempt {retry_count+1})")
                 else:
+                    print(f"image_name: {image_name} and {name}")
+        
                     print(
                         f"Maximum retries reached. or exiting DALLE due to failed safety system")
+                    base64Image = ImageGenerator.stableImage(self, prompt)
+                    uploaded_url = self.upload_blob_from_url(base64Image, image_name, scriptId, False)
                     break
-        image_response = {
-            "url": url,
-        }
-        return image_response
+        return uploaded_url
+
     
     def upload_blob_from_url(self, source_url, image_name):
         blob_service_client = BlobServiceClient.from_connection_string(self.connection_string)
@@ -389,3 +390,12 @@ class VideoService(object):
     
     def time_to_seconds(self, time_obj):
         return time_obj.hours * 3600 + time_obj.minutes * 60 + time_obj.seconds + time_obj.milliseconds / 1000
+    
+    def upload_video_to_blob(self, video_path, blob_name, folder_name):
+        # Upload the video to Azure Blob Storage
+        blob_service_client = BlobServiceClient.from_connection_string(self.connection_string)
+        blob_client = blob_service_client.get_blob_client(container=self.container_name, blob=f"{folder_name}/{blob_name}")
+        with open(video_path, "rb") as video_file:
+            blob_client.upload_blob(video_file.read(), content_settings=ContentSettings(content_type='video/mp4'))
+        return blob_client.url
+

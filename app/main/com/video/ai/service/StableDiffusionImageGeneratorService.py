@@ -39,18 +39,7 @@ class ImageGenerator:
     #     )
     #     response_body = json.loads(response.get("body").read())
     #     results = response_body.get("artifacts")[0].get("base64")
-    #     return results
-
-#     def convert_img(self,base64_string):
-#         """
-#         Turns the base64 string from request into an image with PIL library
-#         """
-#         imgdata = base64.b64decode(base64_string)
-#         image = Image.open(io.BytesIO(imgdata))
-#         return image
-
-#     # image5 = convert_img(req_img("Dog on a beach", "None"))
-    
+    #     return results    
 
     def stableImage(self, prompt):
         
